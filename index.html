@@ -3,95 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Presupuestador Pro - MP Excel</title>
-    
+    <title>MP Presupuestador Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
-        :root {
-            --primary-blue: #3b82f6;
-            --success-green: #2ecc71;
-            --bg-dark: #1a1a1a;
-            --panel-bg: #262626;
-            --accent-red: #e74c3c;
-            --accent-gold: #f1c40f;
-        }
-
-        body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            background-color: var(--bg-dark); 
-            color: white; 
-            margin: 0; 
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Configuración Inicial */
+        :root { --primary-blue: #3b82f6; --success-green: #2ecc71; --bg-dark: #1a1a1a; --accent-red: #e74c3c; --accent-gold: #f1c40f; }
+        body { font-family: sans-serif; background-color: var(--bg-dark); color: white; margin: 0; padding: 0; }
+        
+        /* Pantalla de Carga */
         #setup { position: fixed; inset: 0; background: var(--bg-dark); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; text-align: center; }
-        .setup-card { background: #2d2d2d; padding: 30px; border-radius: 15px; border: 2px solid var(--primary-blue); max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-
-        #main-container { display: none; width: 100%; height: 100%; flex-direction: row; }
+        .setup-card { background: #2d2d2d; padding: 30px; border-radius: 15px; border: 2px solid var(--primary-blue); max-width: 90%; }
         
-        /* Panel Izquierdo (Scanner) */
-        #scanner-panel { width: 40%; border-right: 2px solid #333; display: flex; flex-direction: column; align-items: center; padding: 20px; overflow-y: auto; }
-        #reader { width: 100%; max-width: 350px; margin: 10px 0; border-radius: 10px; overflow: hidden; background: #000; display: none; border: 2px solid var(--primary-blue); }
+        /* Contenedor Principal */
+        #main-container { display: none; flex-direction: column; min-height: 100vh; }
         
-        .search-box { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
-        input[type="text"] { font-size: 18px; padding: 12px; border-radius: 10px; border: 2px solid #444; background: #000; color: #fff; text-align: center; width: 100%; box-sizing: border-box; outline: none; }
-        input[type="text"]:focus { border-color: var(--primary-blue); }
+        /* Estilos de paneles y botones */
+        #reader { width: 100%; max-width: 400px; margin: 10px auto; display: none; border: 2px solid var(--primary-blue); border-radius: 10px; overflow: hidden; }
+        .panel { padding: 15px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 15px; border-radius: 8px; border: none; font-weight: bold; margin-bottom: 10px; cursor: pointer; text-transform: uppercase; }
+        .btn-scan { background: var(--primary-blue); color: white; }
+        .btn-pdf { background: var(--accent-red); color: white; }
         
-        /* Panel Derecho (Presupuesto) */
-        #budget-panel { width: 60%; background: #212121; display: flex; flex-direction: column; padding: 20px; }
-        .table-container { flex-grow: 1; overflow-y: auto; border: 1px solid #444; border-radius: 8px; background: #1a1a1a; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { background: #333; color: var(--primary-blue); padding: 12px; position: sticky; top: 0; text-transform: uppercase; font-size: 11px; }
+        input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #000; color: #fff; text-align: center; box-sizing: border-box; font-size: 16px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th { background: #333; color: var(--primary-blue); padding: 10px; }
         td { padding: 10px; border-bottom: 1px solid #333; text-align: center; }
         
-        .total-budget { font-size: 28px; color: var(--success-green); text-align: right; padding: 15px; background: #000; border-radius: 8px; margin-top: 10px; font-weight: bold; border: 1px solid #333; }
+        .total-box { font-size: 24px; color: var(--success-green); text-align: right; padding: 20px; font-weight: bold; background: #000; position: sticky; bottom: 0; }
         
-        /* Botones */
-        .btn { padding: 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; text-transform: uppercase; transition: opacity 0.2s; }
-        .btn:active { opacity: 0.7; }
-        .btn-scan { background: var(--primary-blue); color: white; width: 100%; margin-bottom: 10px; }
-        .btn-pdf { background: var(--accent-red); color: white; }
-        .btn-reset { background: #444; color: white; }
-
-        /* Adaptación Móvil */
-        @media (max-width: 768px) {
-            body { overflow-y: auto; height: auto; display: block; }
-            #main-container { flex-direction: column; min-height: 100vh; }
-            #scanner-panel, #budget-panel { width: 100%; height: auto; border: none; box-sizing: border-box; }
-            #reader { max-width: 100%; }
-            .total-budget { font-size: 24px; position: sticky; bottom: 0; z-index: 5; }
-        }
+        #debug-info { color: #888; font-size: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="setup">
         <div class="setup-card">
-            <h2 style="color: var(--primary-blue); margin-top: 0;">MP PRESUPUESTADOR</h2>
-            <p style="color: #bbb;">Seleccione el archivo Excel de productos para comenzar</p>
-            <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="color: #fff; margin-top: 10px;">
+            <h2 style="color: var(--primary-blue);">MP - CONFIGURACIÓN</h2>
+            <p>Cargue su archivo de precios (Excel)</p>
+            <input type="file" id="excelFileInput" accept=".xlsx, .xls">
+            <div id="debug-info">Esperando archivo...</div>
         </div>
     </div>
 
     <div id="main-container">
-        <div id="scanner-panel">
+        <div class="panel">
             <button class="btn btn-scan" id="btnCamara" onclick="alternarCamara()">📸 ABRIR CÁMARA</button>
             <div id="reader"></div>
+            <input type="text" id="codigoInput" placeholder="CÓDIGO MANUAL" style="margin-top:10px">
             
-            <div class="search-box">
-                <input type="text" id="codigoInput" placeholder="O INGRESE CÓDIGO MANUAL" autocomplete="off">
-            </div>
-            
-            <div id="resultado" style="width:100%">
-                <div id="desc" style="font-size: 22px; font-weight: bold; text-align: center; margin: 10px 0; color: var(--accent-gold); min-height: 30px;">ESPERANDO...</div>
-                <div id="peso-display" style="color: #2ecc71; font-weight: bold; font-size: 18px; text-align: center; margin-bottom: 10px;"></div>
+            <div id="status" style="text-align:center; margin:15px 0;">
+                <div id="desc" style="color:var(--accent-gold); font-size: 20px; font-weight:bold;">LISTO</div>
+                <div id="peso-display"></div>
             </div>
         </div>
 
-        <div id="budget-panel">
-            <h3 style="margin: 0 0 10px 0; color: var(--primary
+        <div class="panel" style="background:#212121; flex-grow:1;">
+            <div style="overflow-x:auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align:left">PRODUCTO</th>
+                            <th>$/KG</th>
+                            <th>CANT</th>
+                            <th>SUB</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="budget-body"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="total-box" id="total-general">TOTAL: $ 0.00</div>
+        <div class="panel">
+            <button class="btn btn-pdf" onclick="window.print()">GENERAR PDF</button>
+            <button class="btn" style="background:#444; color:#fff" onclick="location.reload()">RECARGAR EXCEL</button>
+        </div>
+    </div>
+
+    <script>
+        let productosCortos = new Map();
+        let productosLargos = new Map();
+        let presupuesto = [];
+        let html5QrCode = null;
+
+        const debug = (msg) => document.getElementById('debug-info').innerText = msg;
+
+        document.getElementById('excelFileInput').addEventListener('change', function(e) {
+            debug("Leyendo archivo...");
+            const reader = new FileReader();
+            
+            reader.onerror = () => alert("Error al leer el archivo local.");
+            
+            reader.onload = (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const filas = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                    if (filas.length < 2) throw new Error("El Excel parece estar vacío.");
+
+                    filas.forEach((f, i) => {
+                        if (i === 0 || !f[2]) return;
+                        const d = { 
+                            n: String(f[2]), 
+                            u: parseFloat(f[5])||0, 
+                            p: String(f[6] || "").toUpperCase().trim() === "SI" 
+                        };
+                        if (f[0]) productosCortos.set(String(f[0]).trim(), d);
+                        if (f[1]) productosLargos.set(String(f[1]).trim(), d);
+                    });
+
+                    debug("Procesado: " + productosCortos.size + " productos.");
+                    
+                    // FORZAR CAMBIO DE PANTALLA
+                    document.getElementById('setup').style.display = 'none';
+                    document.getElementById('main-container').style.display = 'flex';
+                    
+                } catch (err) {
+                    debug("Error: " + err.message);
+                    alert("Error procesando Excel: " + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(e.target.files[0]);
+        });
+
+        async function alternarCamara() {
+            const readerDiv = document.getElementById('reader');
+            const btn = document.getElementById('btnCamara');
+
+            if (html5QrCode && html5QrCode.isScanning) {
+                await html5QrCode.stop();
+                html5QrCode = null;
+                readerDiv.style.display = 'none';
+                btn.innerText = "📸 ABRIR CÁMARA";
+                return;
+            }
+
+            readerDiv.style.display = 'block';
+            btn.innerText = "🛑 DETENER";
+            
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                { fps: 10, qrbox: 250 },
+                (text) => {
+                    procesarLectura(text);
+                    if(navigator.vibrate) navigator.vibrate(50);
+                }
+            ).catch(err => {
+                alert("La cámara no inició. Revisa los permisos HTTPS.");
+                readerDiv.style.display = 'none';
+                btn.innerText = "📸 ABRIR CÁMARA";
+            });
+        }
+
+        function procesarLectura(cod) {
+            let p = cod.length >= 6 ? productosLargos.get(cod) : productosCortos.get(cod);
+            let cant = 1;
+            let esPesable = false;
+
+            if (!p && cod.length >= 12) {
+                const idC = cod.substring(1, 7).replace(/^0+/, '');
+                const pE = productosCortos.get(idC);
+                if (pE && pE.p) {
+                    p = pE;
+                    cant = parseInt(cod.substring(7, 9)) + (parseInt(cod.substring(9, 12)) / 1000);
+                    esPesable = true;
+                }
+            } else if (p) {
+                esPesable = p.p;
+            }
+
+            if (p) {
+                presupuesto.push({ nombre: p.n, precio: p.u, cant: cant, pesable: esPesable });
+                document.getElementById('desc').innerText = p.n;
+                render();
+            }
+        }
+
+        function render() {
+            const body = document.getElementById('budget-body');
+            body.innerHTML = "";
+            let total = 0;
+            presupuesto.forEach((item, i) => {
+                const sub = item.precio * item.cant;
+                total += sub;
+                body.innerHTML += `<tr>
+                    <td style="text-align:left">${item.nombre}</td>
+                    <td>$${item.precio.toFixed(2)}</td>
+                    <td>${item.cant.toFixed(item.pesable ? 3 : 0)}</td>
+                    <td style="color:var(--success-green)">$${sub.toFixed(2)}</td>
+                    <td style="color:red" onclick="presupuesto.splice(${i},1);render()">✕</td>
+                </tr>`;
+            });
+            document.getElementById('total-general').innerText = `TOTAL: $ ${total.toFixed(2)}`;
+        }
+
+        document.getElementById('codigoInput').addEventListener('change', (e) => {
+            procesarLectura(e.target.value);
+            e.target.value = "";
+        });
+    </script>
+</body>
+</html>
