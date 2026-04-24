@@ -10,52 +10,42 @@
     <style>
         :root { --primary-blue: #3b82f6; --success-green: #2ecc71; --bg-dark: #1a1a1a; --accent-red: #e74c3c; --accent-gold: #f1c40f; }
         body { font-family: sans-serif; background-color: var(--bg-dark); color: white; margin: 0; padding: 0; }
-        
-        /* Pantalla de Carga */
         #setup { position: fixed; inset: 0; background: var(--bg-dark); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; text-align: center; }
         .setup-card { background: #2d2d2d; padding: 30px; border-radius: 15px; border: 2px solid var(--primary-blue); max-width: 90%; }
-        
-        /* Contenedor Principal */
         #main-container { display: none; flex-direction: column; min-height: 100vh; }
-        
-        /* Estilos de paneles y botones */
         #reader { width: 100%; max-width: 400px; margin: 10px auto; display: none; border: 2px solid var(--primary-blue); border-radius: 10px; overflow: hidden; }
         .panel { padding: 15px; box-sizing: border-box; }
         .btn { width: 100%; padding: 15px; border-radius: 8px; border: none; font-weight: bold; margin-bottom: 10px; cursor: pointer; text-transform: uppercase; }
         .btn-scan { background: var(--primary-blue); color: white; }
         .btn-pdf { background: var(--accent-red); color: white; }
-        
         input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #000; color: #fff; text-align: center; box-sizing: border-box; font-size: 16px; }
-        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         th { background: #333; color: var(--primary-blue); padding: 10px; }
         td { padding: 10px; border-bottom: 1px solid #333; text-align: center; }
-        
-        .total-box { font-size: 24px; color: var(--success-green); text-align: right; padding: 20px; font-weight: bold; background: #000; position: sticky; bottom: 0; }
-        
-        #debug-info { color: #888; font-size: 10px; margin-top: 10px; }
+        .total-box { font-size: 24px; color: var(--success-green); text-align: right; padding: 20px; font-weight: bold; background: #000; position: sticky; bottom: 0; border-top: 1px solid #333; }
+        .scan-feedback { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success-green); padding: 10px 20px; border-radius: 20px; display: none; z-index: 2000; font-weight: bold; }
     </style>
 </head>
 <body>
 
+    <div id="scan-ok" class="scan-feedback">¡CARGADO!</div>
+
     <div id="setup">
         <div class="setup-card">
             <h2 style="color: var(--primary-blue);">MP - CONFIGURACIÓN</h2>
-            <p>Cargue su archivo de precios (Excel)</p>
+            <p>Cargue el Excel de productos para empezar</p>
             <input type="file" id="excelFileInput" accept=".xlsx, .xls">
-            <div id="debug-info">Esperando archivo...</div>
+            <p id="loading-msg" style="color: gray; font-size: 12px; margin-top: 15px;">Verificando memoria...</p>
         </div>
     </div>
 
     <div id="main-container">
         <div class="panel">
-            <button class="btn btn-scan" id="btnCamara" onclick="alternarCamara()">📸 ABRIR CÁMARA</button>
+            <button class="btn btn-scan" id="btnCamara" onclick="alternarCamara()">📸 ESCANEAR CÁMARA</button>
             <div id="reader"></div>
-            <input type="text" id="codigoInput" placeholder="CÓDIGO MANUAL" style="margin-top:10px">
-            
-            <div id="status" style="text-align:center; margin:15px 0;">
-                <div id="desc" style="color:var(--accent-gold); font-size: 20px; font-weight:bold;">LISTO</div>
-                <div id="peso-display"></div>
+            <input type="text" id="codigoInput" placeholder="INGRESO MANUAL" style="margin-top:10px">
+            <div id="status" style="text-align:center; margin:10px 0; min-height: 24px;">
+                <div id="desc" style="color:var(--accent-gold); font-size: 18px; font-weight:bold;"></div>
             </div>
         </div>
 
@@ -65,7 +55,7 @@
                     <thead>
                         <tr>
                             <th style="text-align:left">PRODUCTO</th>
-                            <th>$/KG</th>
+                            <th>$/UN-KG</th>
                             <th>CANT</th>
                             <th>SUB</th>
                             <th></th>
@@ -78,7 +68,10 @@
         <div class="total-box" id="total-general">TOTAL: $ 0.00</div>
         <div class="panel">
             <button class="btn btn-pdf" onclick="window.print()">GENERAR PDF</button>
-            <button class="btn" style="background:#444; color:#fff" onclick="location.reload()">RECARGAR EXCEL</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="background:#444; color:#fff; flex:1" onclick="limpiarLista()">LIMPIAR</button>
+                <button class="btn" style="background:#222; color:#bbb; flex:1" onclick="actualizarBase()">SUBIR NUEVO EXCEL</button>
+            </div>
         </div>
     </div>
 
@@ -87,98 +80,97 @@
         let productosLargos = new Map();
         let presupuesto = [];
         let html5QrCode = null;
+        let lastReadCode = "";
+        let lastReadTime = 0;
 
-        const debug = (msg) => document.getElementById('debug-info').innerText = msg;
+        // --- PERSISTENCIA Y CARGA ---
+        window.onload = () => {
+            const stored = localStorage.getItem('mp_data');
+            if (stored) {
+                const data = JSON.parse(stored);
+                productosCortos = new Map(Object.entries(data.cortos));
+                productosLargos = new Map(Object.entries(data.largos));
+                mostrarApp();
+            }
+        };
+
+        function mostrarApp() {
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('main-container').style.display = 'flex';
+        }
+
+        function actualizarBase() {
+            if(confirm("¿Desea cargar una nueva lista de precios?")) {
+                localStorage.removeItem('mp_data');
+                location.reload();
+            }
+        }
 
         document.getElementById('excelFileInput').addEventListener('change', function(e) {
-            debug("Leyendo archivo...");
             const reader = new FileReader();
-            
-            reader.onerror = () => alert("Error al leer el archivo local.");
-            
             reader.onload = (event) => {
-                try {
-                    const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const filas = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const filas = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+                
+                let cortosObj = {};
+                let largosObj = {};
 
-                    if (filas.length < 2) throw new Error("El Excel parece estar vacío.");
+                filas.forEach((f, i) => {
+                    if (i === 0 || !f[2]) return;
+                    const d = { n: String(f[2]), u: parseFloat(f[5])||0, p: String(f[6] || "").toUpperCase().trim() === "SI" };
+                    if (f[0]) cortosObj[String(f[0]).trim()] = d;
+                    if (f[1]) largosObj[String(f[1]).trim()] = d;
+                });
 
-                    filas.forEach((f, i) => {
-                        if (i === 0 || !f[2]) return;
-                        const d = { 
-                            n: String(f[2]), 
-                            u: parseFloat(f[5])||0, 
-                            p: String(f[6] || "").toUpperCase().trim() === "SI" 
-                        };
-                        if (f[0]) productosCortos.set(String(f[0]).trim(), d);
-                        if (f[1]) productosLargos.set(String(f[1]).trim(), d);
-                    });
-
-                    debug("Procesado: " + productosCortos.size + " productos.");
-                    
-                    // FORZAR CAMBIO DE PANTALLA
-                    document.getElementById('setup').style.display = 'none';
-                    document.getElementById('main-container').style.display = 'flex';
-                    
-                } catch (err) {
-                    debug("Error: " + err.message);
-                    alert("Error procesando Excel: " + err.message);
-                }
+                localStorage.setItem('mp_data', JSON.stringify({ cortos: cortosObj, largos: largosObj }));
+                productosCortos = new Map(Object.entries(cortosObj));
+                productosLargos = new Map(Object.entries(largosObj));
+                mostrarApp();
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         });
 
+        // --- CÁMARA Y LÓGICA ---
         async function alternarCamara() {
             const readerDiv = document.getElementById('reader');
             const btn = document.getElementById('btnCamara');
-
             if (html5QrCode && html5QrCode.isScanning) {
                 await html5QrCode.stop();
                 html5QrCode = null;
                 readerDiv.style.display = 'none';
-                btn.innerText = "📸 ABRIR CÁMARA";
+                btn.innerText = "📸 ESCANEAR CÁMARA";
                 return;
             }
-
             readerDiv.style.display = 'block';
-            btn.innerText = "🛑 DETENER";
-            
+            btn.innerText = "🛑 DETENER CÁMARA";
             html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start(
-                { facingMode: "environment" }, 
-                { fps: 10, qrbox: 250 },
-                (text) => {
-                    procesarLectura(text);
-                    if(navigator.vibrate) navigator.vibrate(50);
-                }
-            ).catch(err => {
-                alert("La cámara no inició. Revisa los permisos HTTPS.");
-                readerDiv.style.display = 'none';
-                btn.innerText = "📸 ABRIR CÁMARA";
+            html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
+                const now = Date.now();
+                if (text === lastReadCode && (now - lastReadTime) < 2000) return;
+                lastReadCode = text; lastReadTime = now;
+                procesarLectura(text);
+                const fb = document.getElementById('scan-ok');
+                fb.style.display = 'block';
+                if(navigator.vibrate) navigator.vibrate(100);
+                setTimeout(() => fb.style.display = 'none', 1000);
             });
         }
 
         function procesarLectura(cod) {
             let p = cod.length >= 6 ? productosLargos.get(cod) : productosCortos.get(cod);
-            let cant = 1;
-            let esPesable = false;
+            let cant = 1; let esPesable = false; let idUnico = cod;
 
             if (!p && cod.length >= 12) {
                 const idC = cod.substring(1, 7).replace(/^0+/, '');
                 const pE = productosCortos.get(idC);
-                if (pE && pE.p) {
-                    p = pE;
-                    cant = parseInt(cod.substring(7, 9)) + (parseInt(cod.substring(9, 12)) / 1000);
-                    esPesable = true;
-                }
-            } else if (p) {
-                esPesable = p.p;
-            }
+                if (pE && pE.p) { p = pE; cant = parseInt(cod.substring(7, 9)) + (parseInt(cod.substring(9, 12)) / 1000); esPesable = true; idUnico = idC; }
+            } else if (p) { esPesable = p.p; }
 
             if (p) {
-                presupuesto.push({ nombre: p.n, precio: p.u, cant: cant, pesable: esPesable });
+                let existente = presupuesto.find(item => item.id === idUnico);
+                if (existente) { existente.cant += cant; } 
+                else { presupuesto.push({ id: idUnico, nombre: p.n, precio: p.u, cant: cant, pesable: esPesable }); }
                 document.getElementById('desc').innerText = p.n;
                 render();
             }
@@ -186,21 +178,21 @@
 
         function render() {
             const body = document.getElementById('budget-body');
-            body.innerHTML = "";
-            let total = 0;
+            body.innerHTML = ""; let total = 0;
             presupuesto.forEach((item, i) => {
-                const sub = item.precio * item.cant;
-                total += sub;
+                const sub = item.precio * item.cant; total += sub;
                 body.innerHTML += `<tr>
-                    <td style="text-align:left">${item.nombre}</td>
+                    <td style="text-align:left; font-weight:bold;">${item.nombre}</td>
                     <td>$${item.precio.toFixed(2)}</td>
-                    <td>${item.cant.toFixed(item.pesable ? 3 : 0)}</td>
-                    <td style="color:var(--success-green)">$${sub.toFixed(2)}</td>
+                    <td style="background: #333; color:var(--accent-gold); font-weight:bold;">${item.cant.toFixed(item.pesable ? 3 : 0)}</td>
+                    <td style="color:var(--success-green); font-weight:bold;">$${sub.toFixed(2)}</td>
                     <td style="color:red" onclick="presupuesto.splice(${i},1);render()">✕</td>
                 </tr>`;
             });
             document.getElementById('total-general').innerText = `TOTAL: $ ${total.toFixed(2)}`;
         }
+
+        function limpiarLista() { if(confirm("¿Vaciar lista?")) { presupuesto = []; render(); document.getElementById('desc').innerText = ""; } }
 
         document.getElementById('codigoInput').addEventListener('change', (e) => {
             procesarLectura(e.target.value);
