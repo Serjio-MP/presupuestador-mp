@@ -3,105 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MP Presupuestador Pro</title>
+    <title>MP - Verificador de Precios</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
-        :root { --primary-blue: #3b82f6; --success-green: #2ecc71; --bg-dark: #1a1a1a; --accent-red: #e74c3c; --accent-gold: #f1c40f; }
-        body { font-family: sans-serif; background-color: var(--bg-dark); color: white; margin: 0; padding: 0; }
+        :root { --primary-blue: #3b82f6; --bg-dark: #1a1a1a; --accent-gold: #f1c40f; --success-green: #2ecc71; }
+        body { font-family: sans-serif; background-color: var(--bg-dark); color: white; margin: 0; padding: 0; overflow: hidden; }
+        
         #setup { position: fixed; inset: 0; background: var(--bg-dark); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; text-align: center; }
         .setup-card { background: #2d2d2d; padding: 30px; border-radius: 15px; border: 2px solid var(--primary-blue); max-width: 90%; }
-        #main-container { display: none; flex-direction: column; min-height: 100vh; }
-        #reader { width: 100%; max-width: 400px; margin: 10px auto; display: none; border: 2px solid var(--primary-blue); border-radius: 10px; overflow: hidden; }
-        .panel { padding: 15px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 15px; border-radius: 8px; border: none; font-weight: bold; margin-bottom: 10px; cursor: pointer; text-transform: uppercase; }
-        .btn-scan { background: var(--primary-blue); color: white; }
-        .btn-pdf { background: var(--accent-red); color: white; }
-        input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #000; color: #fff; text-align: center; box-sizing: border-box; font-size: 16px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th { background: #333; color: var(--primary-blue); padding: 10px; }
-        td { padding: 10px; border-bottom: 1px solid #333; text-align: center; }
-        .total-box { font-size: 24px; color: var(--success-green); text-align: right; padding: 20px; font-weight: bold; background: #000; position: sticky; bottom: 0; border-top: 1px solid #333; }
-        .scan-feedback { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success-green); padding: 10px 20px; border-radius: 20px; display: none; z-index: 2000; font-weight: bold; }
+        
+        #main-container { display: none; flex-direction: column; height: 100vh; padding: 15px; box-sizing: border-box; }
+        
+        #reader { width: 100%; max-width: 400px; margin: 0 auto; border: 2px solid var(--primary-blue); border-radius: 10px; overflow: hidden; display: none; }
+        
+        .display-card { 
+            background: #262626; 
+            border-radius: 15px; 
+            padding: 25px; 
+            margin-top: 20px; 
+            text-align: center; 
+            border: 1px solid #444;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .producto-nombre { color: var(--accent-gold); font-size: 26px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
+        .precio-label { color: #aaa; font-size: 16px; margin-top: 15px; text-transform: uppercase; }
+        .precio-valor { color: var(--success-green); font-size: 48px; font-weight: bold; margin: 5px 0; }
+        .precio-bulto { color: #3b82f6; font-size: 32px; font-weight: bold; }
+
+        .btn { width: 100%; padding: 18px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 16px; }
+        .btn-scan { background: var(--primary-blue); color: white; margin-bottom: 15px; }
+        .btn-update { background: #333; color: #888; font-size: 12px; margin-top: 20px; }
+        
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: #000; color: #fff; text-align: center; font-size: 18px; }
     </style>
 </head>
 <body>
 
-    <div id="scan-ok" class="scan-feedback">¡CARGADO!</div>
-
     <div id="setup">
         <div class="setup-card">
-            <h2 style="color: var(--primary-blue);">MP - CONFIGURACIÓN</h2>
-            <p>Cargue el Excel de productos para empezar</p>
+            <h2 style="color: var(--primary-blue);">CONSULTA DE PRECIOS MP</h2>
+            <p>Cargue el Excel para inicializar la base</p>
             <input type="file" id="excelFileInput" accept=".xlsx, .xls">
-            <p id="loading-msg" style="color: gray; font-size: 12px; margin-top: 15px;">Verificando memoria...</p>
         </div>
     </div>
 
     <div id="main-container">
-        <div class="panel">
-            <button class="btn btn-scan" id="btnCamara" onclick="alternarCamara()">📸 ESCANEAR CÁMARA</button>
-            <div id="reader"></div>
-            <input type="text" id="codigoInput" placeholder="INGRESO MANUAL" style="margin-top:10px">
-            <div id="status" style="text-align:center; margin:10px 0; min-height: 24px;">
-                <div id="desc" style="color:var(--accent-gold); font-size: 18px; font-weight:bold;"></div>
+        <button class="btn btn-scan" id="btnCamara" onclick="alternarCamara()">📸 ACTIVAR ESCÁNER</button>
+        <div id="reader"></div>
+        
+        <input type="text" id="codigoInput" placeholder="O DIGITE CÓDIGO MANUAL" style="margin-top: 15px;">
+
+        <div class="display-card" id="display">
+            <div id="desc" class="producto-nombre">ESCANEÉ UN PRODUCTO</div>
+            
+            <div id="info-precios" style="display: none;">
+                <div class="precio-label">Precio Unitario / KG</div>
+                <div id="unitario" class="precio-valor">$ 0.00</div>
+                
+                <div class="precio-label">Precio por Bulto</div>
+                <div id="bulto" class="precio-bulto">$ 0.00</div>
             </div>
         </div>
 
-        <div class="panel" style="background:#212121; flex-grow:1;">
-            <div style="overflow-x:auto">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="text-align:left">PRODUCTO</th>
-                            <th>$/UN-KG</th>
-                            <th>CANT</th>
-                            <th>SUB</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="budget-body"></tbody>
-                </table>
-            </div>
-        </div>
-        <div class="total-box" id="total-general">TOTAL: $ 0.00</div>
-        <div class="panel">
-            <button class="btn btn-pdf" onclick="window.print()">GENERAR PDF</button>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn" style="background:#444; color:#fff; flex:1" onclick="limpiarLista()">LIMPIAR</button>
-                <button class="btn" style="background:#222; color:#bbb; flex:1" onclick="actualizarBase()">SUBIR NUEVO EXCEL</button>
-            </div>
-        </div>
+        <button class="btn btn-update" onclick="actualizarBase()">ACTUALIZAR EXCEL DE PRECIOS</button>
     </div>
 
     <script>
         let productosCortos = new Map();
         let productosLargos = new Map();
-        let presupuesto = [];
         let html5QrCode = null;
         let lastReadCode = "";
         let lastReadTime = 0;
 
-        // --- PERSISTENCIA Y CARGA ---
         window.onload = () => {
-            const stored = localStorage.getItem('mp_data');
+            const stored = localStorage.getItem('mp_verificador_data');
             if (stored) {
                 const data = JSON.parse(stored);
                 productosCortos = new Map(Object.entries(data.cortos));
                 productosLargos = new Map(Object.entries(data.largos));
-                mostrarApp();
+                document.getElementById('setup').style.display = 'none';
+                document.getElementById('main-container').style.display = 'flex';
             }
         };
 
-        function mostrarApp() {
-            document.getElementById('setup').style.display = 'none';
-            document.getElementById('main-container').style.display = 'flex';
-        }
-
         function actualizarBase() {
-            if(confirm("¿Desea cargar una nueva lista de precios?")) {
-                localStorage.removeItem('mp_data');
+            if(confirm("¿Desea cargar una nueva lista?")) {
+                localStorage.removeItem('mp_verificador_data');
                 location.reload();
             }
         }
@@ -113,25 +106,26 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const filas = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
                 
-                let cortosObj = {};
-                let largosObj = {};
+                let cortosObj = {}; let largosObj = {};
 
                 filas.forEach((f, i) => {
                     if (i === 0 || !f[2]) return;
-                    const d = { n: String(f[2]), u: parseFloat(f[5])||0, p: String(f[6] || "").toUpperCase().trim() === "SI" };
+                    // f[2]: nombre, f[5]: precio unit, f[4]: precio bulto
+                    const d = { 
+                        n: String(f[2]), 
+                        u: parseFloat(f[5])||0, 
+                        b: parseFloat(f[4])||0 
+                    };
                     if (f[0]) cortosObj[String(f[0]).trim()] = d;
                     if (f[1]) largosObj[String(f[1]).trim()] = d;
                 });
 
-                localStorage.setItem('mp_data', JSON.stringify({ cortos: cortosObj, largos: largosObj }));
-                productosCortos = new Map(Object.entries(cortosObj));
-                productosLargos = new Map(Object.entries(largosObj));
-                mostrarApp();
+                localStorage.setItem('mp_verificador_data', JSON.stringify({ cortos: cortosObj, largos: largosObj }));
+                location.reload();
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         });
 
-        // --- CÁMARA Y LÓGICA ---
         async function alternarCamara() {
             const readerDiv = document.getElementById('reader');
             const btn = document.getElementById('btnCamara');
@@ -139,63 +133,46 @@
                 await html5QrCode.stop();
                 html5QrCode = null;
                 readerDiv.style.display = 'none';
-                btn.innerText = "📸 ESCANEAR CÁMARA";
+                btn.innerText = "📸 ACTIVAR ESCÁNER";
                 return;
             }
             readerDiv.style.display = 'block';
-            btn.innerText = "🛑 DETENER CÁMARA";
+            btn.innerText = "🛑 DETENER ESCÁNER";
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
                 const now = Date.now();
                 if (text === lastReadCode && (now - lastReadTime) < 2000) return;
                 lastReadCode = text; lastReadTime = now;
-                procesarLectura(text);
-                const fb = document.getElementById('scan-ok');
-                fb.style.display = 'block';
-                if(navigator.vibrate) navigator.vibrate(100);
-                setTimeout(() => fb.style.display = 'none', 1000);
+                mostrarPrecio(text);
+                if(navigator.vibrate) navigator.vibrate(50);
             });
         }
 
-        function procesarLectura(cod) {
+        function mostrarPrecio(cod) {
             let p = cod.length >= 6 ? productosLargos.get(cod) : productosCortos.get(cod);
-            let cant = 1; let esPesable = false; let idUnico = cod;
-
+            
+            // Lógica para etiquetas de balanza (si el código no está directo)
             if (!p && cod.length >= 12) {
                 const idC = cod.substring(1, 7).replace(/^0+/, '');
-                const pE = productosCortos.get(idC);
-                if (pE && pE.p) { p = pE; cant = parseInt(cod.substring(7, 9)) + (parseInt(cod.substring(9, 12)) / 1000); esPesable = true; idUnico = idC; }
-            } else if (p) { esPesable = p.p; }
+                p = productosCortos.get(idC);
+            }
+
+            const infoDiv = document.getElementById('info-precios');
+            const desc = document.getElementById('desc');
 
             if (p) {
-                let existente = presupuesto.find(item => item.id === idUnico);
-                if (existente) { existente.cant += cant; } 
-                else { presupuesto.push({ id: idUnico, nombre: p.n, precio: p.u, cant: cant, pesable: esPesable }); }
-                document.getElementById('desc').innerText = p.n;
-                render();
+                desc.innerText = p.n;
+                document.getElementById('unitario').innerText = `$ ${p.u.toLocaleString('es-AR', {minimumFractionDigits:2})}`;
+                document.getElementById('bulto').innerText = `$ ${p.b.toLocaleString('es-AR', {minimumFractionDigits:2})}`;
+                infoDiv.style.display = 'block';
+            } else {
+                desc.innerText = "PRODUCTO NO ENCONTRADO";
+                infoDiv.style.display = 'none';
             }
         }
 
-        function render() {
-            const body = document.getElementById('budget-body');
-            body.innerHTML = ""; let total = 0;
-            presupuesto.forEach((item, i) => {
-                const sub = item.precio * item.cant; total += sub;
-                body.innerHTML += `<tr>
-                    <td style="text-align:left; font-weight:bold;">${item.nombre}</td>
-                    <td>$${item.precio.toFixed(2)}</td>
-                    <td style="background: #333; color:var(--accent-gold); font-weight:bold;">${item.cant.toFixed(item.pesable ? 3 : 0)}</td>
-                    <td style="color:var(--success-green); font-weight:bold;">$${sub.toFixed(2)}</td>
-                    <td style="color:red" onclick="presupuesto.splice(${i},1);render()">✕</td>
-                </tr>`;
-            });
-            document.getElementById('total-general').innerText = `TOTAL: $ ${total.toFixed(2)}`;
-        }
-
-        function limpiarLista() { if(confirm("¿Vaciar lista?")) { presupuesto = []; render(); document.getElementById('desc').innerText = ""; } }
-
         document.getElementById('codigoInput').addEventListener('change', (e) => {
-            procesarLectura(e.target.value);
+            mostrarPrecio(e.target.value);
             e.target.value = "";
         });
     </script>
