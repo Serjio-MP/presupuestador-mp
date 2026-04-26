@@ -14,33 +14,52 @@
         #setup { position: fixed; inset: 0; background: var(--bg-dark); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; text-align: center; }
         .setup-card { background: #2d2d2d; padding: 30px; border-radius: 15px; border: 2px solid var(--primary-blue); max-width: 90%; }
         
-        #main-container { display: none; flex-direction: column; height: 100vh; padding: 15px; box-sizing: border-box; }
+        #main-container { 
+            display: none; 
+            flex-direction: column; 
+            height: 100vh; 
+            padding: 15px; 
+            padding-bottom: 35px; /* Espacio de seguridad para el borde inferior del celular */
+            box-sizing: border-box; 
+        }
         
         #reader { width: 100%; max-width: 400px; margin: 0 auto; border: 2px solid var(--primary-blue); border-radius: 10px; overflow: hidden; display: none; }
         
         .display-card { 
             background: #262626; 
             border-radius: 15px; 
-            padding: 25px; 
-            margin-top: 20px; 
+            padding: 20px; 
+            margin-top: 15px; 
             text-align: center; 
             border: 1px solid #444;
-            flex-grow: 1;
+            flex: 1 1 auto; /* Permite que la tarjeta sea flexible y no empuje lo de abajo */
             display: flex;
             flex-direction: column;
             justify-content: center;
+            min-height: 120px;
+            overflow-y: auto;
         }
 
-        .producto-nombre { color: var(--accent-gold); font-size: 26px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
-        .precio-label { color: #aaa; font-size: 16px; margin-top: 15px; text-transform: uppercase; }
-        .precio-valor { color: var(--success-green); font-size: 48px; font-weight: bold; margin: 5px 0; }
-        .precio-bulto { color: #3b82f6; font-size: 32px; font-weight: bold; }
+        .producto-nombre { color: var(--accent-gold); font-size: 24px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
+        .precio-label { color: #aaa; font-size: 14px; margin-top: 10px; text-transform: uppercase; }
+        .precio-valor { color: var(--success-green); font-size: 42px; font-weight: bold; margin: 5px 0; }
+        .precio-bulto { color: #3b82f6; font-size: 28px; font-weight: bold; }
 
-        .btn { width: 100%; padding: 18px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 16px; }
-        .btn-scan { background: var(--primary-blue); color: white; margin-bottom: 15px; }
-        .btn-update { background: #333; color: #888; font-size: 12px; margin-top: 20px; }
+        .btn { width: 100%; padding: 16px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 15px; }
+        .btn-scan { background: var(--primary-blue); color: white; margin-bottom: 10px; flex-shrink: 0; }
         
-        input[type="text"] { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: #000; color: #fff; text-align: center; font-size: 18px; }
+        .btn-update { 
+            background: #333; 
+            color: #888; 
+            font-size: 11px; 
+            margin-top: 15px; 
+            margin-bottom: 5px; 
+            border: 1px solid #444;
+            padding: 12px;
+            flex-shrink: 0; /* Evita que el botón se achique */
+        }
+        
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background: #000; color: #fff; text-align: center; font-size: 18px; box-sizing: border-box; }
     </style>
 </head>
 <body>
@@ -110,7 +129,6 @@
 
                 filas.forEach((f, i) => {
                     if (i === 0 || !f[2]) return;
-                    // f[2]: nombre, f[5]: precio unit, f[4]: precio bulto
                     const d = { 
                         n: String(f[2]), 
                         u: parseFloat(f[5])||0, 
@@ -151,7 +169,6 @@
         function mostrarPrecio(cod) {
             let p = cod.length >= 6 ? productosLargos.get(cod) : productosCortos.get(cod);
             
-            // Lógica para etiquetas de balanza (si el código no está directo)
             if (!p && cod.length >= 12) {
                 const idC = cod.substring(1, 7).replace(/^0+/, '');
                 p = productosCortos.get(idC);
